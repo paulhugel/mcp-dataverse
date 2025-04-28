@@ -1,5 +1,7 @@
 # MCP (Model Context Protocol) server for Dataverse
 
+Credits: this work is funded by [SSHOC-NL](https://sshoc.nl) project developing Semantic Croissant.
+
 Installation:
 ```
 cp .env-sample .env
