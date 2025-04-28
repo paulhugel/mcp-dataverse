@@ -1,4 +1,4 @@
-# MCP server for Dataverse
+# MCP (Model Context Protocol) server for Dataverse
 
 Installation:
 ```
