@@ -36,7 +36,7 @@ Type in the chat of Agent:
 ```
 Connect to MCP server running on http://127.0.0.1:8000 and explore all tools.
 
-Explore dataset [doi:10.7910/DVN/6TFFPG](https://dataverse.harvard.edu/dataset.xhtml?persistentId=doi:10.7910/DVN/6TFFPG)
+Explore dataset doi:10.7910/DVN/6TFFPG
 ```
 If everything is connected properly you should see this response from the Agent:
 ```
