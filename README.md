@@ -2,6 +2,8 @@
 
 Credits: this work is funded by [SSHOC-NL](https://sshoc.nl) project developing [Semantic Croissant](https://docs.google.com/document/d/1fi9Lb6x5Wm0L9CZftqjSGElV_ifcSW_IT-H8ZlpbrtQ/edit?tab=t.0). First version of [Croissant ML](https://docs.mlcommons.org/croissant/docs/croissant-spec.html) export for Dataverse was implemented by Phil Durbin (Harvard IQSS) and Slava Tykhonov (DANS-KNAW).
 
+If you don't know what Croissant ML is - it's a language for machines built on top of schema.org.
+
 Installation:
 ```
 cp .env-sample .env
