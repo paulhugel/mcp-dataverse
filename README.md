@@ -51,7 +51,7 @@ The research focuses on photoluminescence spectra at low magnetic fields
 ```
 ## Multilingual support
 
-Let's connect to dataset in Dutch and ask questions in English. Example use dataset from [DANS Archaelogy Data Station](https://archaeology.datastations.nl/dataset.xhtml?persistentId=doi:10.17026/AR/IQZTRX):
+Let's connect to a dataset in Dutch and ask questions in English. Example dataset is taken from [DANS Archaelogy Data Station](https://archaeology.datastations.nl/dataset.xhtml?persistentId=doi:10.17026/AR/IQZTRX):
 ```
 give me overview of doi:10.17026/dans-xv2-dsx6
 ```
