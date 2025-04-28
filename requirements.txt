@@ -1,0 +1,15 @@
+fastapi
+uv
+pydoi
+ollama
+#chromadb
+uvicorn
+requests
+beautifulsoup4
+pandas
+fastapi-mcp
+fastexcel
+croissant-rdf
+polars
+git+https://github.com/Dans-labs/pyDataverse@development#egg=pyDataverse
+
