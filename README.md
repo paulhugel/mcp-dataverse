@@ -21,15 +21,22 @@ You can register MCP in Cursor, Visual Studio or Windsurf Editor, or other IDE w
     }
 }
 }
-
 ```
-Type in your IDE chat:
+
+## Test Croissant ML support for Dataverse
+```
+curl -X POST "http://localhost:8000/tools/dataset_convert_to_croissant_ml" -H "Content-Type: application/json" -d '{"doi":"doi:10.7910/DVN/WGCRY7"}'
+```
+
+## Connect MCP to your favourite IDE
+
+Type in the chat of Agent:
 ```
 Connect to MCP server running on http://127.0.0.1:8000 and explore all tools.
 
 Explore dataset doi:10.7910/DVN/6TFFPG
 ```
-Expected response should be like this if everything is connected properly:
+If everything is connected properly you should see this response from the Agent:
 ```
 Based on the dataset information, this is a scientific dataset related to quantum physics research. Here are the key details:
 Dataset Title: "Replication Data for: All-Optical Photoluminescence Spectra of Nitrogen-Vacancy Ensembles in Diamond at Low Magnetic Fields"
