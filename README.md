@@ -1,6 +1,6 @@
 # MCP (Model Context Protocol) server for Dataverse
 
-Credits: this work is funded by [SSHOC-NL](https://sshoc.nl) project developing Semantic Croissant.
+Credits: this work is funded by [SSHOC-NL](https://sshoc.nl) project developing Semantic Croissant. [Croissant ML](https://docs.mlcommons.org/croissant/docs/croissant-spec.html) export for Dataverse was created by Phil Durbin (Harvard IQSS) and Slava Tykhonov (DANS-KNAW).
 
 Installation:
 ```
