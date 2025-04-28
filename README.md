@@ -48,33 +48,57 @@ Description:
 This dataset contains experimental data from research on Nitrogen-Vacancy (NV) centers in diamond
 It includes data shown in both the main text and supplemental material of the associated scientific paper
 The research focuses on photoluminescence spectra at low magnetic fields
-Content:
-The dataset contains 30 CSV files organized into several categories:
-Main figures data (Fig.2b, Fig.2c, Fig.2d, etc.)
-Supplemental figures data (Fig.S2, Fig.S6, Fig.S7, etc.)
-Experimental and simulation data for different conditions:
-Different nitrogen isotopes (14N and 15N)
-Various magnetic field strengths (0.5mT, 1mT, etc.)
-Different power levels (2mW, 50mW)
-Lock-in amplifier measurements
-File Types:
-All files are in CSV format
-Files are named according to their corresponding figures in the paper
-Some files are 1D data (single measurements)
-Some files are 2D data (spectra or multiple measurements)
-Technical Details:
-License: CC0 1.0 (Public Domain)
-Keywords: All-Optical, Nitrogen vacancy centers in diamond, Quantum Sensing
-Created: April 28, 2025
-This dataset would be valuable for:
-Quantum physics researchers studying NV centers
-Scientists working on quantum sensing applications
-Researchers developing diamond-based quantum technologies
-Those interested in reproducing or verifying the published results
-Would you like me to:
-Download and analyze specific data files?
-Look for patterns in the experimental results?
-Compare experimental and simulation data?
-Focus on a particular aspect of the research?
-Please let me know what aspect you'd like to explore further.
+```
+## Multilingual support
+
+Let's connect to dataset in Dutch and ask questions in English. Example use dataset from [DANS Archaelogy Data Station](https://archaeology.datastations.nl/dataset.xhtml?persistentId=doi:10.17026/AR/IQZTRX):
+```
+give me overview of doi:10.17026/dans-xv2-dsx6
+```
+The response in English:
+```
+Here's a comprehensive overview of the dataset with DOI 10.17026/AR/IQZTRX:
+Basic Information:
+Title: "Plangebied Epemawei te Ysbrechtum" (Planning Area Epemawei in Ysbrechtum)
+Description: Archaeological investigation report for the Epemawei area in Ysbrechtum
+Creator: B.I. van Hoof (RAAP Archeologisch Adviesbureau BV)
+Date Created: April 18, 2025
+Version: 6.3 build DANS-DataStation-PATCH-10
+Key Findings:
+Soil investigation revealed:
+Tidal deposits
+Eroded peat remnants
+Middelzee deposits
+No evidence of archaeological sites was found
+No further archaeological investigation recommended
+Content Structure:
+The dataset contains 4 files:
+RAAPrap_7313_SFEP_20240821.pdf (2.7 MB)
+Main report document
+Contains detailed findings and analysis
+SFEP_boorgegevens.GeoJson (28.4 KB)
+Geological data in GeoJSON format
+Contains drilling data
+SFEP_rapport_meta.ods (22.9 KB)
+Report metadata in spreadsheet format
+SFEP_tabellijst.ods (11.7 KB)
+Table list in spreadsheet format
+Technical Information:
+License: Creative Commons Attribution 4.0 (CC BY 4.0)
+File Formats:
+PDF (application/pdf)
+GeoJSON (application/octet-stream)
+OpenDocument Spreadsheet (application/vnd.oasis.opendocument.spreadsheet)
+All files have MD5 checksums for verification
+Context:
+Location: Ysbrechtum, Netherlands
+Type: Archaeological investigation report
+Purpose: Planning area assessment
+Conducted by: RAAP Archeological Advisory Bureau
+This dataset is valuable for:
+Archaeological research
+Urban planning
+Historical geography
+Environmental studies
+Cultural heritage management
 ```
