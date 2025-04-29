@@ -4,7 +4,9 @@ import logging
 import sys
 from typing import Optional
 import urllib
-
+import time
+from urllib.error import HTTPError
+import asyncio
 import anyio
 import click
 from fastapi import Body
@@ -14,12 +16,32 @@ from fastapi.responses import JSONResponse
 from fastapi.responses import StreamingResponse
 import httpx
 from mcp.server.lowlevel import Server
+from mcp.server.fastmcp import FastMCP
+from mcp.server.session import ServerSession
 import mcp.types as types
 from pyDataverse.Croissant import Croissant
+#from mcp.server.lowlevel import TextContent
+#from mcp.schema import TextContent
 import pydoi
 
 from utils.dataframe import CroissantRecipe
+####################################################################################
+# Temporary monkeypatch which avoids crashing when a POST message is received
+# before a connection has been initialized, e.g: after a deployment.
+# pylint: disable-next=protected-access
+old__received_request = ServerSession._received_request
 
+
+async def _received_request(self, *args, **kwargs):
+    try:
+        return await old__received_request(self, *args, **kwargs)
+    except RuntimeError:
+        pass
+
+
+# pylint: disable-next=protected-access
+ServerSession._received_request = _received_request
+####################################################################################\
 logger = logging.getLogger(__name__)
 
 def resolve_doi( doi_str):
@@ -54,23 +76,29 @@ def serialize_data(data):
         return data.isoformat()  # Convert datetime to ISO format string
     return data
 
-def convert_dataset_to_croissant_ml(doi: str) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
+def convert_dataset_to_croissant_ml(doi: str, max_retries: int = 3, retry_delay: int = 5) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
     if not doi.startswith('doi:'):
         doi = f"doi:{doi}"
     host = resolve_doi(doi)
 
     print(f"Getting Croissant record for Dataverse doi: {doi}", file=sys.stderr)
     
-    # Fix DOI handling - check if it starts with 'doi:' prefix
+    for attempt in range(max_retries):
+        try:
+            croissant = Croissant(doi=doi, host=host)
+            record = croissant.get_record()
+            return record
+        except HTTPError as e:
+            if e.code == 429 and attempt < max_retries - 1:
+                print(f"Rate limited, retrying in {retry_delay} seconds... (attempt {attempt + 1}/{max_retries})", file=sys.stderr)
+                time.sleep(retry_delay)
+                continue
+            raise
+        except Exception as e:
+            logger.error(f"Error fetching record: {e}")
+            return {"error": "Unable to fetch record from Dataverse."}
     
-    croissant = Croissant(doi=doi, host=host)
-    try:
-        record = croissant.get_record()
-        return record
-        #return Response(content=record, media_type="application/json")  # Return the record as JSON
-    except Exception as e:
-        logger.error(f"Error fetching record: {e}")
-        return {"error": "Unable to fetch record from Dataverse."}
+    return {"error": "Maximum retry attempts reached. Please try again later."}
 
 def datatool(input: dict) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
     doi = input["doi"]
@@ -95,7 +123,7 @@ def datatool(input: dict) -> list[types.TextContent | types.ImageContent | types
     help="Transport type",
 )
 def main(port: int, transport: str) -> int:
-    app = Server("mcp-website-fetcher")
+    app = Server("semantic-croissant")
 
     @app.call_tool()
     async def fetch_tool(
@@ -111,9 +139,10 @@ def main(port: int, transport: str) -> int:
     async def get_croissant_record(
         name: str, arguments: dict
     ) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
+        logger.info(f"Tool name received: {name}")
         if name != "get_croissant_record":
             raise ValueError(f"Unknown tool: {name}")
-        return await convert_dataset_to_croissant_ml(arguments["doi"])
+        return convert_dataset_to_croissant_ml(arguments["doi"])
 
     @app.call_tool()
     async def datatool(
@@ -123,12 +152,24 @@ def main(port: int, transport: str) -> int:
             raise ValueError(f"Unknown tool: {name}")
         return await datatool(input)
 
+    @app.call_tool()
+    async def get_croissant_record_endpoint(
+        name: str, arguments: dict
+    ) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
+        if name != "get_croissant_record":
+            raise ValueError(f"Unknown tool: {name}")
+        #await asyncio.sleep(0.1)
+        record = convert_dataset_to_croissant_ml(arguments["doi"]) #await get_croissant_record("get_croissant_record", {"doi": arguments["doi"]})
+        return record
+        #serializable_record = serialize_data(record)
+        #return types.TextContent(type="text", text=json.dumps(serializable_record, indent=4))
+
     @app.list_tools()
     async def list_tools() -> list[types.Tool]:
         tools = [
             types.Tool(
                 name="fetch",
-                endpoint="fetch",
+                endpoint="/fetch",
                 description="Fetches a website and returns its content",
                 inputSchema={
                     "type": "object",
@@ -143,8 +184,8 @@ def main(port: int, transport: str) -> int:
             ),
             types.Tool(
                 name="get_croissant_record",
-                endpoint="get_croissant_record",
-                description="Convert a dataset to Croissant ML format",
+                endpoint="/get_croissant_record",
+                description="Convert a dataset to Croissant ML format with get_croissant_record tool",
                 inputSchema={
                     "type": "object",
                     "required": ["doi"],
@@ -155,7 +196,7 @@ def main(port: int, transport: str) -> int:
             ),
             types.Tool(
                 name="datatool",
-                endpoint="datatool",
+                endpoint="/tools/datatool",
                 description="Process a file in a dataset with DOI with datatool tool",
                 inputSchema={
                     "type": "object",
@@ -193,7 +234,8 @@ def main(port: int, transport: str) -> int:
                 {
                     "name": tool.name,
                     "description": tool.description,
-                    "inputSchema": tool.inputSchema
+                    "inputSchema": tool.inputSchema,
+                    "endpoint": tool.endpoint
                 }
                 for tool in tools
             ]
@@ -205,18 +247,21 @@ def main(port: int, transport: str) -> int:
         async def run_get_croissant_record(request: Request):
             if request.method == "GET":
                 doi = request.query_params.get("doi")
-                host = request.query_params.get("host", "https://dataverse.nl")
             else:
                 body = await request.json()
                 doi = body.get("doi")
-                host = body.get("host", "https://dataverse.nl")
+                host = None
 
             if not doi:
-                return JSONResponse(content={"error": "Missing required field 'doi'"}, status_code=400)
+                return JSONResponse(content={"error": "Missing required field 'doi'. Please provide a DOI in the format '10.18710/CHMWOB'"}, status_code=200)
             
-            result = convert_dataset_to_croissant_ml(doi)
-            serialized_result = serialize_data(result)
-            return JSONResponse(content=serialized_result)
+            try:
+                result = convert_dataset_to_croissant_ml(doi)
+                serialized_result = serialize_data(result)
+                return JSONResponse(content=serialized_result)
+            except Exception as e:
+                logger.error(f"Error in get_croissant_record: {e}")
+                return JSONResponse(content={"error": str(e)}, status_code=500)
 
         async def run_datatool(request: Request):
             if request.method == "GET":
@@ -230,10 +275,66 @@ def main(port: int, transport: str) -> int:
             if not doi or not file:
                 return JSONResponse(content={"error": "Missing required fields 'doi' and 'file'"}, status_code=400)
 
-            input_data = {"doi": doi, "file": file}
-            result = await datatool(input_data)
-            serialized_result = serialize_data(result)
-            return JSONResponse(content=serialized_result)
+            try:
+                input_data = {"doi": doi, "file": file}
+                result = await datatool(input_data)
+                serialized_result = serialize_data(result)
+                return JSONResponse(content=serialized_result)
+            except Exception as e:
+                logger.error(f"Error in datatool: {e}")
+                return JSONResponse(content={"error": str(e)}, status_code=500)
+
+        async def get_mcp(request: Request):
+            tools = await list_tools()
+            # Convert tools to a serializable format
+            serializable_tools = [
+                {
+                    "name": tool.name,
+                    "description": tool.description,
+                    "inputSchema": tool.inputSchema,
+                    "endpoint": tool.endpoint
+                }
+                for tool in tools
+            ]
+            return JSONResponse(content={"tools": serializable_tools})
+
+        async def mcp_croissant_record_endpoint(request: Request):
+            logger.info(f"New croissant record endpoint called")
+            data = await request.json()
+            if request.method == "POST":
+                doi = data.get("doi")
+            else:
+                doi = request.query_params.get("doi")
+            #return {"status": "ok", "doi": doi}
+
+            if request.method == "GET":
+                doi = request.query_params.get("doi")
+            else:
+                body = await request.json()
+                doi = body.get("doi")
+
+            if not doi:
+                return JSONResponse(content={"error": "Missing required field 'doi'. Please provide a DOI in the format '10.18710/CHMWOB'"}, status_code=200)
+
+            logger.info(f"New croissant record endpoint called with doi: {doi}")
+            try:
+                result = await get_croissant_record_endpoint('get_croissant_record', {"doi": doi})
+                logger.info(f"Result: {result}")
+                serialized_result = serialize_data(result)
+                ##return JSONResponse(content=types.TextContent(type="text", text=str(serialized_result)))
+                serialized_result['format'] = 'application/json'
+                serialized_result['message'] = 'Croissant record fetched successfully'
+                #return JSONResponse(content=serialized_result, media_type='application/json')
+                #return TextContent(text=json.dumps(serialized_result, indent=4), mime_type='application/json')
+                return JSONResponse(content={
+                    "type": "text",
+                    "mimeType": "application/ld+json",
+                    "text": json.dumps(serialized_result, indent=2)
+                })
+                #return JSONResponse(content={"result": f"{serialized_result}"})
+            except Exception as e:
+                logger.error(f"Error in get_croissant_record: {e}")
+                return JSONResponse(content={"error": str(e)}, status_code=500)
 
         starlette_app = Starlette(
             debug=True,
@@ -253,21 +354,43 @@ def main(port: int, transport: str) -> int:
                 Route("/croissant/dspace", endpoint=run_get_croissant_record, methods=["GET", "POST"]),
                 Route("/croissant", endpoint=run_get_croissant_record, methods=["GET", "POST"]),
                 Route("/datatool", endpoint=run_datatool, methods=["GET", "POST"]),
-                Route("/mcp", endpoint=run_get_croissant_record, methods=["GET", "POST"]),
+                Route("/mcp", endpoint=get_mcp, methods=["GET", "POST"]),
+                Route("/mcp/list_tools", endpoint=get_mcp, methods=["GET", "POST"]),
+                Route("/get_croissant_record", endpoint=mcp_croissant_record_endpoint, methods=["GET", "POST"]),
             ],
         )
+
+        # Ensure the server is ready before starting
+        async def startup():
+            logger.info("Server is ready to handle requests")
+
+        starlette_app.add_event_handler("startup", startup)
 
         import uvicorn
 
         uvicorn.run(starlette_app, host="0.0.0.0", port=port)
     else:
         from mcp.server.stdio import stdio_server
-
+        logger.info("Starting MCP server in stdio mode")
         async def arun():
-            async with stdio_server() as streams:
-                await app.run(
-                    streams[0], streams[1], app.create_initialization_options()
-                )
+            try:
+                # Initialize the stdio server
+                async with stdio_server() as streams:
+                    logger.info("Server is ready to handle requests")
+                    
+                    # Create initialization options
+                    init_options = app.create_initialization_options()
+                    
+                    # Run the app with proper error handling
+                    try:
+                        await app.run(streams[0], streams[1], init_options)
+                    except Exception as e:
+                        logger.error(f"Error running app: {e}")
+                        raise
+                        
+            except Exception as e:
+                logger.error(f"Error in stdio server: {e}")
+                raise
 
         anyio.run(arun)
 
