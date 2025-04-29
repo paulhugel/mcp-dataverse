@@ -108,10 +108,10 @@ def main(port: int, transport: str) -> int:
         return await fetch_website(arguments["url"])
 
     @app.call_tool()
-    async def dataset_convert_to_croissant_ml(
+    async def get_croissant_record(
         name: str, arguments: dict
     ) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
-        if name != "dataset_convert_to_croissant_ml":
+        if name != "get_croissant_record":
             raise ValueError(f"Unknown tool: {name}")
         return await convert_dataset_to_croissant_ml(arguments["doi"])
 
@@ -142,8 +142,8 @@ def main(port: int, transport: str) -> int:
                 },
             ),
             types.Tool(
-                name="dataset_convert_to_croissant_ml",
-                endpoint="dataset_convert_to_croissant_ml",
+                name="get_croissant_record",
+                endpoint="get_croissant_record",
                 description="Convert a dataset to Croissant ML format",
                 inputSchema={
                     "type": "object",
@@ -202,9 +202,15 @@ def main(port: int, transport: str) -> int:
         async def get_status(request: Request):
             return JSONResponse(content={"status": "ok"})
 
-        async def run_dataset_convert_to_croissant_ml(request: Request):
-            body = await request.json()
-            doi = body.get("doi")
+        async def run_get_croissant_record(request: Request):
+            if request.method == "GET":
+                doi = request.query_params.get("doi")
+                host = request.query_params.get("host", "https://dataverse.nl")
+            else:
+                body = await request.json()
+                doi = body.get("doi")
+                host = body.get("host", "https://dataverse.nl")
+
             if not doi:
                 return JSONResponse(content={"error": "Missing required field 'doi'"}, status_code=400)
             
@@ -213,11 +219,20 @@ def main(port: int, transport: str) -> int:
             return JSONResponse(content=serialized_result)
 
         async def run_datatool(request: Request):
-            doi = request.query_params["doi"]
-            file = request.query_params["file"]
-            input_data = {"doi": doi, "file": file}  # Prepare the input dictionary
-            result = await datatool(input_data)  # Call the function with the input dictionary
-            serialized_result = serialize_data(result)  # Serialize the result
+            if request.method == "GET":
+                doi = request.query_params.get("doi")
+                file = request.query_params.get("file")
+            else:
+                body = await request.json()
+                doi = body.get("doi")
+                file = body.get("file")
+
+            if not doi or not file:
+                return JSONResponse(content={"error": "Missing required fields 'doi' and 'file'"}, status_code=400)
+
+            input_data = {"doi": doi, "file": file}
+            result = await datatool(input_data)
+            serialized_result = serialize_data(result)
             return JSONResponse(content=serialized_result)
 
         starlette_app = Starlette(
@@ -227,16 +242,18 @@ def main(port: int, transport: str) -> int:
                 Mount("/messages/", app=sse.handle_post_message),
                 Route("/tools", endpoint=get_tools),
                 Route("/status", endpoint=get_status),
-                Route("/tools/dataset_convert_to_croissant_ml", endpoint=run_dataset_convert_to_croissant_ml, methods=["GET", "POST"]),
-                Route("/tools/croissant/dataverse", endpoint=run_dataset_convert_to_croissant_ml, methods=["GET", "POST"]),
-                Route("/tools/croissant/kaggle", endpoint=run_dataset_convert_to_croissant_ml, methods=["GET", "POST"]),
-                Route("/croissant/github", endpoint=run_dataset_convert_to_croissant_ml, methods=["POST"]),
-                Route("/croissant/huggingface", endpoint=run_dataset_convert_to_croissant_ml, methods=["POST"]),
-                Route("/croissant/openml", endpoint=run_dataset_convert_to_croissant_ml, methods=["POST"]),
-                Route("/croissant/zenodo", endpoint=run_dataset_convert_to_croissant_ml, methods=["POST"]),
-                Route("/croissant/figshare", endpoint=run_dataset_convert_to_croissant_ml, methods=["POST"]),
-                Route("/croissant/dspace", endpoint=run_dataset_convert_to_croissant_ml, methods=["POST"]),
-                Route("/datatool", endpoint=run_datatool, methods=["POST"]),
+                Route("/tools/get_croissant_record", endpoint=run_get_croissant_record, methods=["GET", "POST"]),
+                Route("/tools/croissant/dataverse", endpoint=run_get_croissant_record, methods=["GET", "POST"]),
+                Route("/tools/croissant/kaggle", endpoint=run_get_croissant_record, methods=["GET", "POST"]),
+                Route("/croissant/github", endpoint=run_get_croissant_record, methods=["GET", "POST"]),
+                Route("/croissant/huggingface", endpoint=run_get_croissant_record, methods=["GET", "POST"]),
+                Route("/croissant/openml", endpoint=run_get_croissant_record, methods=["GET", "POST"]),
+                Route("/croissant/zenodo", endpoint=run_get_croissant_record, methods=["GET", "POST"]),
+                Route("/croissant/figshare", endpoint=run_get_croissant_record, methods=["GET", "POST"]),
+                Route("/croissant/dspace", endpoint=run_get_croissant_record, methods=["GET", "POST"]),
+                Route("/croissant", endpoint=run_get_croissant_record, methods=["GET", "POST"]),
+                Route("/datatool", endpoint=run_datatool, methods=["GET", "POST"]),
+                Route("/mcp", endpoint=run_get_croissant_record, methods=["GET", "POST"]),
             ],
         )
 
