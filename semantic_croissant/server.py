@@ -341,7 +341,7 @@ def main(port: int, transport: str) -> int:
             routes=[
                 Route("/sse", endpoint=handle_sse),
                 Mount("/messages/", app=sse.handle_post_message),
-                Route("/tools", endpoint=get_tools),
+                Route("/tools", endpoint=get_tools, methods=["GET", "POST"]),
                 Route("/status", endpoint=get_status),
                 Route("/tools/get_croissant_record", endpoint=run_get_croissant_record, methods=["GET", "POST"]),
                 Route("/tools/croissant/dataverse", endpoint=run_get_croissant_record, methods=["GET", "POST"]),
