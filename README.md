@@ -12,7 +12,7 @@ docker-compose build
 docker-compose up -d
 ```
 
-Go to http://127.0.0.1:8000/tools to get an overview of available tools.
+Go to http://127.0.0.1:8000/tools to get an overview of available tools. We have also deployed official Dataverse MCP server on https://mcp.dataverse.org
 
 You can register MCP in Cursor, Visual Studio or Windsurf Editor, or other IDE with AI Agents support. For example, create configuration file for Cursor [~/.cursor/mcp.json](https://docs.cursor.com/context/model-context-protocol):
 ```
