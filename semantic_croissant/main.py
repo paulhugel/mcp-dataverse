@@ -1,5 +1,5 @@
 import sys
 
-from .server import main
+from .server_min import main
 
 sys.exit(main())

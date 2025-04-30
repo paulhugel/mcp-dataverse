@@ -33,3 +33,4 @@ ENV PYTHONPATH=/app
 
 # Run the application
 CMD ["uv", "run", "semantic_croissant", "--transport", "sse", "--port", "8000"]
+#CMD ["uvicorn", "semantic_croissant.server-min", "--host", "0.0.0.0", "--port", "8000", "--reload"]
