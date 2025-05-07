@@ -15,8 +15,10 @@ services:
       - "KAGGLE_USERNAME"
       - "KAGGLE_KEY"
       - "HF_API_KEY"
+      - "AUDIOMODAL"
     volumes:
       - .:/app
+      - ./cache:/root/.cache
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/mcp"]

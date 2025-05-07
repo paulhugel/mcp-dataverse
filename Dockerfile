@@ -6,7 +6,7 @@ WORKDIR /app
 
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
-    gcc git jq vim curl \
+    build-essential gcc ffmpeg cmake git jq vim curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first to leverage Docker cache
@@ -15,6 +15,7 @@ COPY requirements.txt .
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install uv
+RUN pip install nemo_toolkit['asr']
 #RUN pip install git+https://github.com/Dans-labs/pyDataverse@development#egg=pyDataverse
 
 # Copy application code
