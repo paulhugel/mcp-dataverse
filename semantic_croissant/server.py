@@ -22,6 +22,7 @@ import mcp.types as types
 from pyDataverse.Croissant import Croissant
 #from mcp.server.lowlevel import TextContent
 #from mcp.schema import TextContent
+from utils.MultiMedia import MultiMedia
 import pydoi
 
 from utils.dataframe import CroissantRecipe
@@ -64,7 +65,8 @@ async def fetch_website(
     async with httpx.AsyncClient(follow_redirects=True, headers=headers) as client:
         response = await client.get(url)
         response.raise_for_status()
-        return [types.TextContent(type="text", text=response.text)]
+        #return [types.TextContent(type="text", text=response.text)]
+        return response.text
 
 def serialize_data(data):
     """Recursively convert datetime objects to strings."""
@@ -336,6 +338,13 @@ def main(port: int, transport: str) -> int:
                 logger.error(f"Error in get_croissant_record: {e}")
                 return JSONResponse(content={"error": str(e)}, status_code=500)
 
+        async def run_fetch_website(request: Request):
+            url = request.query_params["url"]
+            result = await fetch_website(url)
+            #serialized_result = serialize_data(result)  # Serialize the result
+            #return JSONResponse(content=serialized_result)
+            return Response(content=result, media_type="text/html")
+
         starlette_app = Starlette(
             debug=True,
             routes=[
@@ -357,6 +366,7 @@ def main(port: int, transport: str) -> int:
                 Route("/mcp", endpoint=get_mcp, methods=["GET", "POST"]),
                 Route("/mcp/list_tools", endpoint=get_mcp, methods=["GET", "POST"]),
                 Route("/get_croissant_record", endpoint=mcp_croissant_record_endpoint, methods=["GET", "POST"]),
+                Route("/fetch", endpoint=run_fetch_website, methods=["GET", "POST"])
             ],
         )
 
