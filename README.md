@@ -37,7 +37,7 @@ curl -X POST "http://localhost:8000/tools/dataset_convert_to_croissant_ml" -H "C
 
 Type in the chat of Agent:
 ```
-Connect to MCP server running on http://127.0.0.1:8000 and explore all tools.
+Connect to MCP server running on http://127.0.0.1:8000 and explore all tools with curl command.
 
 Explore dataset doi:10.7910/DVN/6TFFPG
 ```
