@@ -57,7 +57,7 @@ Continue with the instructions below about what to try typing to the agent.
 
 ## Test Croissant ML support for Dataverse
 ```
-curl -X POST "http://localhost:8000/tools/dataset_convert_to_croissant_ml" -H "Content-Type: application/json" -d '{"doi":"doi:10.7910/DVN/WGCRY7"}'
+curl -X POST "http://localhost:8000/tools/get_croissant_record" -H "Content-Type: application/json" -d '{"doi":"doi:10.7910/DVN/WGCRY7"}'
 ```
 
 ## Connect MCP to your favourite IDE
