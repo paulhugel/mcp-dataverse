@@ -28,6 +28,33 @@ You can register MCP in Cursor, Visual Studio or Windsurf Editor, or other IDE w
 }
 ```
 
+To register this MCP server in Visual Studio Code ([official docs](https://code.visualstudio.com/docs/copilot/chat/mcp-servers)), open settings and search for "mcp". Click the link "edit in settings.json" under "Model Context Protocol server configurations" and paste the "mcp-dataverse" objects below, which are shown in a simplified version of that configuration file.
+
+```
+{
+...
+  "mcp": {
+    "servers": {
+      "mcp-dataverse-local": {
+        "type": "sse",
+        "url": "http://127.0.0.1:8000/sse"
+      },
+      "mcp-dataverse-remote": {
+        "type": "sse",
+        "url": "https://mcp.dataverse.org/sse"
+      }
+    }
+  }
+...
+}
+```
+
+Next, click "view", then "open chat". Choose "Agent" in the dropdown that offers "Ask", "Edit", and "Agent".
+
+Your new MCP servers should be configured for use but you can check if they are enabled or disable one of them by clicking the "select tools" icon (just below the chat input area) and scrolling down to them (here you can also try the "add more tools" button).
+
+Continue with the instructions below about what to try typing to the agent.
+
 ## Test Croissant ML support for Dataverse
 ```
 curl -X POST "http://localhost:8000/tools/dataset_convert_to_croissant_ml" -H "Content-Type: application/json" -d '{"doi":"doi:10.7910/DVN/WGCRY7"}'
