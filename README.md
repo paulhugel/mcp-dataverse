@@ -9,7 +9,7 @@ Even if it's artificial.
 
 When getting started, we recommend the public MCP server for Dataverse at <https://mcp.dataverse.org>. (Below you'll also find instructions on how to run the MCP server locally.) You can visit https://mcp.dataverse.org/tools for an inventory of available tools.
 
-You will need an MCP client with AI agent support such as [Cursor](https://www.cursor.com), [Visual Studio Code](https://code.visualstudio.com), or [Windsurf Editor](https://windsurf.com).
+You will need an MCP client with AI agent support such as [Cursor](https://www.cursor.com), [Visual Studio Code](https://code.visualstudio.com), [Windsurf Editor](https://windsurf.com), or [Zed](https://zed.dev).
 
 ### (Optional) Command line test
 
@@ -67,6 +67,45 @@ To register the MCP server in Visual Studio Code ([official docs](https://code.v
 Next, click "view", then "open chat". Choose "Agent" in the dropdown that offers "Ask", "Edit", and "Agent".
 
 Your new MCP server should be configured for use but you can check if it are enabled by clicking the "select tools" icon (just below the chat input area) and scrolling down (here you can also try the "add more tools" button).
+</details>
+
+<details><summary>Windsurf</summary>
+
+As explained in the [Windsurf docs](https://docs.windsurf.com/windsurf/cascade/mcp), configure
+`~/.codeium/windsurf/mcp_config.json` with the following.
+
+```
+{
+  "mcpServers": {
+    "mcp-dataverse": {
+      "serverUrl": "https://mcp.dataverse.org/sse"
+    }
+  }
+}
+```
+</details>
+
+<details><summary>Zed</summary>
+
+As explained in the [Zed docs](https://zed.dev/docs/ai/mcp), add the following to `settings.json` (the `...` indicates there are probably additional lines in your file):
+
+```
+{
+  "context_servers": {
+    "mcp-dataverse": {
+      "command": {
+        "path": "npx",
+        "args": ["-y", "mcp-remote", "https://mcp.dataverse.org/sse"],
+        "env": null
+      },
+      "settings": {}
+    }
+  }
+...
+}
+
+```
+
 </details>
 
 ### Chat examples
