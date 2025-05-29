@@ -41,6 +41,8 @@ Create a configuration file for Cursor at [~/.cursor/mcp.json](https://docs.curs
   }
 }
 ```
+
+Ensure that "auto" is selected as the agent.
 </details>
 
 <details><summary>Visual Studio Code</summary>
