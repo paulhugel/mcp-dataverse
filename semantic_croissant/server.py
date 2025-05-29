@@ -188,7 +188,7 @@ def main(port: int, transport: str) -> int:
             types.Tool(
                 name="get_croissant_record",
                 endpoint="/get_croissant_record",
-                description="Convert a dataset to Croissant ML format with get_croissant_record tool",
+                description="Convert a dataset to Croissant ML format with get_croissant_record tool and explore the dataset with DOI or handle.",
                 inputSchema={
                     "type": "object",
                     "required": ["doi"],
