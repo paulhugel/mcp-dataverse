@@ -244,6 +244,19 @@ def main(port: int, transport: str) -> int:
                     },
                 },
             ),
+            types.Tool(
+                name="search_datasets",
+                endpoint="/search/datasets",
+                description="Search for datasets in a Dataverse installation",
+                inputSchema={
+                    "type": "object",
+                    "required": ["host", "query"],
+                    "properties": {
+                        "host": {"type": "string", "description": "Host of the Dataverse installation (e.g. dataverse.nl)"},
+                        "query": {"type": "string", "description": "Query to search for datasets"}
+                    },
+                },
+            ),
         ]
         return tools
 
@@ -393,9 +406,27 @@ def main(port: int, transport: str) -> int:
                 body = await request.json()
                 host = body.get("host")
 
+            return search_datasets(host, False)
+
+        async def run_search_datasets(request: Request):
+            if request.method == "GET":
+                host = request.query_params.get("host")
+                query = request.query_params.get("query")
+            else:
+                body = await request.json()
+                host = body.get("host")
+                query = body.get("query")
+            return search_datasets(host, query)
+
+        def search_datasets(host: str, query: str):
+            if query:
+                query = f"q={query}"
+            else:
+                query = "q=%2A"
+
             if not 'http' in host:
                 host = f"https://{host}"
-            url = f"{host}/api/search?q=%2A&type=dataset"
+            url = f"{host}/api/search?{query}&type=dataset"
             data = requests.get(url)
             datasets = data.json()['data']
             return JSONResponse(content={"datasets": datasets})
@@ -439,6 +470,7 @@ def main(port: int, transport: str) -> int:
                 Route("/fetch", endpoint=run_fetch_website, methods=["GET", "POST"]),
                 Route("/overview", endpoint=run_get_overview, methods=["GET", "POST"]),
                 Route("/overview/datasets", endpoint=run_get_overview_datasets, methods=["GET", "POST"]),
+                Route("/search/datasets", endpoint=run_search_datasets, methods=["GET", "POST"]),
                 Route("/overview/files", endpoint=run_get_overview_files, methods=["GET", "POST"]),
             ],
         )
