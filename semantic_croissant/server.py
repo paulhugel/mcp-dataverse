@@ -20,9 +20,10 @@ from mcp.server.fastmcp import FastMCP
 from mcp.server.session import ServerSession
 import mcp.types as types
 from pyDataverse.Croissant import Croissant
+import requests
 #from mcp.server.lowlevel import TextContent
 #from mcp.schema import TextContent
-from utils.MultiMedia import MultiMedia
+#from utils.MultiMedia import MultiMedia
 import pydoi
 
 from utils.dataframe import CroissantRecipe
@@ -209,6 +210,40 @@ def main(port: int, transport: str) -> int:
                     },
                 },
             ),
+            types.Tool(
+                name="overview",
+                endpoint="/overview",
+                description="Get an overview of the Dataverse installations around the world sorted by country. Entrance point for the overview tools if no hosts are provided.",
+                inputSchema={
+                    "type": "object",
+                    "required": [],
+                    "properties": {},
+                },
+            ),
+            types.Tool(
+                name="overview_datasets",
+                endpoint="/overview/datasets",
+                description="Get an overview of the Dataverse datasets statistics by host",
+                inputSchema={
+                    "type": "object",
+                    "required": ["host"],
+                    "properties": {
+                        "host": {"type": "string", "description": "Host of the Dataverse installation (e.g. dataverse.nl)"}
+                    },
+                },
+            ),
+            types.Tool(
+                name="overview_files",
+                endpoint="/overview/files",
+                description="Get an overview of the Dataverse files statistics by host",
+                inputSchema={
+                    "type": "object",
+                    "required": ["host"],
+                    "properties": {
+                        "host": {"type": "string", "description": "Host of the Dataverse installation (e.g. dataverse.nl)"}
+                    },
+                },
+            ),
         ]
         return tools
 
@@ -345,6 +380,41 @@ def main(port: int, transport: str) -> int:
             #return JSONResponse(content=serialized_result)
             return Response(content=result, media_type="text/html")
 
+        async def run_get_overview(request: Request):
+            url = os.environ.get("DATAVERSES")
+            data = requests.get(url)
+            installations = data.json()['installations']
+            return JSONResponse(content={"installations": installations})
+            
+        async def run_get_overview_datasets(request: Request):
+            if request.method == "GET":
+                host = request.query_params.get("host")
+            else:
+                body = await request.json()
+                host = body.get("host")
+
+            if not 'http' in host:
+                host = f"https://{host}"
+            url = f"{host}/api/search?q=%2A&type=dataset"
+            data = requests.get(url)
+            datasets = data.json()['data']
+            return JSONResponse(content={"datasets": datasets})
+
+        async def run_get_overview_files(request: Request):
+            if request.method == "GET":
+                host = request.query_params.get("host")
+            else:
+                body = await request.json()
+                host = body.get("host")
+
+            if not 'http' in host:
+                host = f"https://{host}"
+            url = f"{host}/api/search?q=*&type=file&per_page=0"
+            data = requests.get(url)
+            files = data.json()['data']
+            return JSONResponse(content={"files": files})
+
+
         starlette_app = Starlette(
             debug=True,
             routes=[
@@ -366,7 +436,10 @@ def main(port: int, transport: str) -> int:
                 Route("/mcp", endpoint=get_mcp, methods=["GET", "POST"]),
                 Route("/mcp/list_tools", endpoint=get_mcp, methods=["GET", "POST"]),
                 Route("/get_croissant_record", endpoint=mcp_croissant_record_endpoint, methods=["GET", "POST"]),
-                Route("/fetch", endpoint=run_fetch_website, methods=["GET", "POST"])
+                Route("/fetch", endpoint=run_fetch_website, methods=["GET", "POST"]),
+                Route("/overview", endpoint=run_get_overview, methods=["GET", "POST"]),
+                Route("/overview/datasets", endpoint=run_get_overview_datasets, methods=["GET", "POST"]),
+                Route("/overview/files", endpoint=run_get_overview_files, methods=["GET", "POST"]),
             ],
         )
 

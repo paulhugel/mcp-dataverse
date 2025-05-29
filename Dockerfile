@@ -15,8 +15,6 @@ COPY requirements.txt .
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install uv
-RUN pip install nemo_toolkit['asr']
-#RUN pip install git+https://github.com/Dans-labs/pyDataverse@development#egg=pyDataverse
 
 # Copy application code
 COPY app /app/app
