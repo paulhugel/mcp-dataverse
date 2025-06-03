@@ -44,6 +44,9 @@ This prepares your agent or system to interact with the MCP tools programmatical
 - How many datasets were published in France in 2024?
 - Compare number of datasets between Johns Hopkins and Harvard Dataverse.
 - I'm studying gender inequality in education. What datasets could help?
+- give me overview of dataset doi:10.17026/dans-x8n-hfvr 
+- where this coin was found?
+- what is the age of the coin?
 
 ---
 
