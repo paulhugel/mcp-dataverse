@@ -1,6 +1,6 @@
 # Dataverse MCP Use Cases
 
-The **Dataverse MCP** (Machine-Connectable Protocol) enables automated tools and LLM agents to explore and analyze the global Dataverse data network.
+The **Dataverse MCP** (Model Context Protocol) enables automated tools and LLM agents to explore and analyze the global Dataverse data network.
 
 ## 🚀 Onboarding: Before You Start
 
