@@ -32,6 +32,9 @@ This prepares your agent or system to interact with the MCP tools programmatical
 
 ## ❓ Common Questions
 
+- Do onboarding and give me overview of all Dataverses
+- List Dataverses from US
+- How many datasets in dataverse.nl?
 - How many datasets on `{query}` exist in the whole Dataverse network?
 - How many Dataverse installations were created over the last 10 years, by country?
 - How many datasets exist in France?
