@@ -9,7 +9,7 @@ Even if it's artificial.
 
 When getting started, we recommend the public MCP server for Dataverse at <https://mcp.dataverse.org>. (Below you'll also find instructions on how to run the MCP server locally.) You can visit https://mcp.dataverse.org/tools for an inventory of available tools.
 
-You will need an MCP client with AI agent support such as [Cursor](https://www.cursor.com), [Visual Studio Code](https://code.visualstudio.com), [Windsurf Editor](https://windsurf.com), or [Zed](https://zed.dev).
+You will need an MCP client with AI agent support such as [Cursor](https://www.cursor.com), [Visual Studio Code](https://code.visualstudio.com), [Claude Desktop](https://claude.ai/download), [Windsurf Editor](https://windsurf.com), or [Zed](https://zed.dev).
 
 ### (Optional) Command line test
 
