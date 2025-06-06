@@ -69,6 +69,26 @@ Next, click "view", then "open chat". Choose "Agent" in the dropdown that offers
 Your new MCP server should be configured for use but you can check if it are enabled by clicking the "select tools" icon (just below the chat input area) and scrolling down (here you can also try the "add more tools" button).
 </details>
 
+<details><summary>Claude Desktop</summary>
+
+
+To register the MCP server in Claude Desktop ([official docs](https://modelcontextprotocol.io/quickstart/user)), open your settings, click "Developer", and then click "edit config". Paste the following into the config file (`claude_desktop_config.json`):
+
+
+```
+{
+  "mcpServers": {
+    "mcp-dataverse": {
+      "command": "npx",
+      "args": ["mcp-remote", "https://mcp.dataverse.org/sse"]
+    }
+  }
+}
+```
+
+Restart Claude Desktop. If you click "search and tools" (just below the prompt) you should see "mcp-dataverse".
+</details>
+
 <details><summary>Windsurf</summary>
 
 As explained in the [Windsurf docs](https://docs.windsurf.com/windsurf/cascade/mcp), configure
