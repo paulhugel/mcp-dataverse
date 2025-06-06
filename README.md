@@ -71,9 +71,7 @@ Your new MCP server should be configured for use but you can check if it are ena
 
 <details><summary>Claude Desktop</summary>
 
-
 To register the MCP server in Claude Desktop ([official docs](https://modelcontextprotocol.io/quickstart/user)), open your settings, click "Developer", and then click "edit config". Paste the following into the config file (`claude_desktop_config.json`):
-
 
 ```
 {
