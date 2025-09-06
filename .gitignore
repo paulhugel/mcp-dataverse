@@ -1,3 +1,161 @@
+<<<<<<< HEAD
+# OS
+.DS_Store
+
+# Python bytecode and caches
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+.python-env/
+
+# Environment and secrets
+.env
+*.env
+.env.*.local
+.env.local
+.envrc
+!.env-sample
+
+# Build/dist artifacts
+build/
+dist/
+sdist/
+*.egg-info/
+.eggs/
+wheels/
+share/python-wheels/
+pip-wheel-metadata/
+MANIFEST
+
+# Tool caches
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.pytype/
+.coverage
+coverage.xml
+htmlcov/
+.nox/
+.tox/
+
+# Logs
+logs/
+*.log
+
+# IDE/editor
+.idea/
+.vscode/
+*.code-workspace
+
+# Project-specific caches and temp
+cache/
+.cache/
+tmp/
+tmp*/
+data/
+downloads/
+.ipynb_checkpoints/
+
+# Node/npm (if accidentally created)
+node_modules/
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
+# Docker (local overrides/config)
+docker-compose.override.yml
+.docker/
+
+# uv/lockfiles
+# Keep uv.lock files committed; do not ignore them
+# (semantic_croissant/uv.lock is already present in repo)
+
 # Local caches (explicit)
 semantic_croissant/__pycache__/
 utils/__pycache__/
+=======
+# OS
+.DS_Store
+
+# Python bytecode and caches
+__pycache__/
+**/__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+ENV/
+.python-env/
+
+# Environment and secrets
+.env
+*.env
+.env.*.local
+.env.local
+.envrc
+!.env-sample
+
+# Build/dist artifacts
+build/
+dist/
+sdist/
+*.egg-info/
+.eggs/
+wheels/
+share/python-wheels/
+pip-wheel-metadata/
+MANIFEST
+
+# Tool caches
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.pytype/
+.coverage
+coverage.xml
+htmlcov/
+.nox/
+.tox/
+
+# Logs
+logs/
+*.log
+
+# IDE/editor
+.idea/
+.vscode/
+*.code-workspace
+
+# Project-specific caches and temp
+cache/
+.cache/
+tmp/
+tmp*/
+data/
+downloads/
+.ipynb_checkpoints/
+
+# Node/npm (if accidentally created)
+node_modules/
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
+# Docker (local overrides/config)
+docker-compose.override.yml
+.docker/
+
+# uv/lockfiles
+# Keep uv.lock files committed; do not ignore them
+# (semantic_croissant/uv.lock is already present in repo)
+>>>>>>> origin/main
