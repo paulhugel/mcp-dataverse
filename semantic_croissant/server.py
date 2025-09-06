@@ -7,6 +7,7 @@ import urllib
 import time
 from urllib.error import HTTPError
 import asyncio
+import os
 import anyio
 import click
 from fastapi import Body
@@ -59,14 +60,13 @@ def resolve_doi( doi_str):
 
 async def fetch_website(
     url: str,
-) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
+) -> str:
     headers = {
         "User-Agent": "MCP Croissant Server"
     }
     async with httpx.AsyncClient(follow_redirects=True, headers=headers) as client:
         response = await client.get(url)
         response.raise_for_status()
-        #return [types.TextContent(type="text", text=response.text)]
         return response.text
 
 def serialize_data(data):
@@ -79,7 +79,7 @@ def serialize_data(data):
         return data.isoformat()  # Convert datetime to ISO format string
     return data
 
-def convert_dataset_to_croissant_ml(doi: str, max_retries: int = 3, retry_delay: int = 5) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
+def convert_dataset_to_croissant_ml(doi: str, max_retries: int = 3, retry_delay: int = 5):
     if not doi.startswith('doi:'):
         doi = f"doi:{doi}"
     host = resolve_doi(doi)
@@ -103,7 +103,7 @@ def convert_dataset_to_croissant_ml(doi: str, max_retries: int = 3, retry_delay:
     
     return {"error": "Maximum retry attempts reached. Please try again later."}
 
-def datatool(input: dict) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
+def process_datatool(input: dict):
     doi = input["doi"]
     file = input["file"]
     logger.info(f"Datatool DOI is {doi}")
@@ -136,7 +136,8 @@ def main(port: int, transport: str) -> int:
             raise ValueError(f"Unknown tool: {name}")
         if "url" not in arguments:
             raise ValueError("Missing required argument 'url'")
-        return await fetch_website(arguments["url"])
+        html = await fetch_website(arguments["url"])
+        return [types.TextContent(type="text", text=html, mimeType="text/html")]
 
     @app.call_tool()
     async def get_croissant_record(
@@ -145,7 +146,15 @@ def main(port: int, transport: str) -> int:
         logger.info(f"Tool name received: {name}")
         if name != "get_croissant_record":
             raise ValueError(f"Unknown tool: {name}")
-        return convert_dataset_to_croissant_ml(arguments["doi"])
+        record = convert_dataset_to_croissant_ml(arguments["doi"]) 
+        serialized = serialize_data(record)
+        return [
+            types.TextContent(
+                type="text",
+                text=json.dumps(serialized),
+                mimeType="application/ld+json",
+            )
+        ]
 
     @app.call_tool()
     async def datatool(
@@ -153,7 +162,14 @@ def main(port: int, transport: str) -> int:
     ) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
         if name != "datatool":
             raise ValueError(f"Unknown tool: {name}")
-        return await datatool(input)
+        result = process_datatool(input)
+        return [
+            types.TextContent(
+                type="text",
+                text=json.dumps(serialize_data(result)),
+                mimeType="application/json",
+            )
+        ]
 
     @app.call_tool()
     async def get_croissant_record_endpoint(
@@ -172,7 +188,6 @@ def main(port: int, transport: str) -> int:
         tools = [
             types.Tool(
                 name="fetch",
-                endpoint="/fetch",
                 description="Fetches a website and returns its content",
                 inputSchema={
                     "type": "object",
@@ -187,8 +202,7 @@ def main(port: int, transport: str) -> int:
             ),
             types.Tool(
                 name="get_croissant_record",
-                endpoint="/get_croissant_record",
-                description="Convert a dataset to Croissant ML format with get_croissant_record tool and explore the dataset with DOI or handle.",
+                description="Convert a dataset to Croissant ML format and explore by DOI or handle.",
                 inputSchema={
                     "type": "object",
                     "required": ["doi"],
@@ -199,8 +213,7 @@ def main(port: int, transport: str) -> int:
             ),
             types.Tool(
                 name="datatool",
-                endpoint="/tools/datatool",
-                description="Process a file in a dataset with DOI with datatool tool",
+                description="Process a file in a dataset by DOI",
                 inputSchema={
                     "type": "object",
                     "required": ["doi", "file"],
@@ -212,8 +225,7 @@ def main(port: int, transport: str) -> int:
             ),
             types.Tool(
                 name="overview",
-                endpoint="/overview",
-                description="Get an overview of the Dataverse installations around the world sorted by country. Entrance point for the overview tools if no hosts are provided.",
+                description="Overview of Dataverse installations around the world",
                 inputSchema={
                     "type": "object",
                     "required": [],
@@ -222,8 +234,7 @@ def main(port: int, transport: str) -> int:
             ),
             types.Tool(
                 name="overview_datasets",
-                endpoint="/overview/datasets",
-                description="Get an overview of the Dataverse datasets statistics by host",
+                description="Overview of dataset statistics by host",
                 inputSchema={
                     "type": "object",
                     "required": ["host"],
@@ -234,8 +245,7 @@ def main(port: int, transport: str) -> int:
             ),
             types.Tool(
                 name="overview_files",
-                endpoint="/overview/files",
-                description="Get an overview of the Dataverse files statistics by host",
+                description="Overview of file statistics by host",
                 inputSchema={
                     "type": "object",
                     "required": ["host"],
@@ -246,7 +256,6 @@ def main(port: int, transport: str) -> int:
             ),
             types.Tool(
                 name="search_datasets",
-                endpoint="/search/datasets",
                 description="Search for datasets in a Dataverse installation",
                 inputSchema={
                     "type": "object",
@@ -279,13 +288,22 @@ def main(port: int, transport: str) -> int:
 
         async def get_tools(request: Request):
             tools = await list_tools()
-            # Convert tools to a serializable format
+            # Map tool names to HTTP endpoints for human/browseable listing
+            endpoint_map = {
+                "fetch": "/fetch",
+                "get_croissant_record": "/tools/get_croissant_record",
+                "datatool": "/datatool",
+                "overview": "/overview",
+                "overview_datasets": "/overview/datasets",
+                "overview_files": "/overview/files",
+                "search_datasets": "/search/datasets",
+            }
             serializable_tools = [
                 {
                     "name": tool.name,
                     "description": tool.description,
                     "inputSchema": tool.inputSchema,
-                    "endpoint": tool.endpoint
+                    "endpoint": endpoint_map.get(tool.name)
                 }
                 for tool in tools
             ]
@@ -327,7 +345,7 @@ def main(port: int, transport: str) -> int:
 
             try:
                 input_data = {"doi": doi, "file": file}
-                result = await datatool(input_data)
+                result = process_datatool(input_data)
                 serialized_result = serialize_data(result)
                 return JSONResponse(content=serialized_result)
             except Exception as e:
