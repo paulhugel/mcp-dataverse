@@ -32,8 +32,18 @@ class CroissantRecipe:
     def get_files(self):
         self.native_api = NativeApi(self.host)
         self.resp = self.native_api.get_dataset(self.doi)
-        self.datafiles = self.resp.json()["data"]["latestVersion"]["files"]
-        self.files = {df["dataFile"]["filename"]: df["dataFile"]["id"] for df in self.datafiles}
+        payload = {}
+        try:
+            payload = self.resp.json()
+            version = payload.get("data", {}).get("latestVersion", {})
+            self.datafiles = version.get("files", [])
+        except Exception as e:
+            print(f"Error parsing dataset response: {e}")
+            self.datafiles = []
+        try:
+            self.files = {df.get("dataFile", {}).get("filename"): df.get("dataFile", {}).get("id") for df in self.datafiles if df.get("dataFile")}
+        except Exception:
+            self.files = {}
         return self.datafiles
 
     def resolve_doi(self, doi_str):
@@ -48,7 +58,11 @@ class CroissantRecipe:
     def get_datafiles(self):
         native_api = NativeApi(self.host)
         resp = native_api.get_dataset(self.doi)
-        datafiles = resp.json()["data"]["latestVersion"]["files"]
+        try:
+            datafiles = resp.json().get("data", {}).get("latestVersion", {}).get("files", [])
+        except Exception as e:
+            print(f"Error parsing dataset response: {e}")
+            datafiles = []
         return datafiles
 
     def dataexport(self, datafile_id, format="csv"):

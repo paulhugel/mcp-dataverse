@@ -1,22 +1,16 @@
-from datetime import datetime
+import datetime as dt
 import json
 import logging
 import sys
-from typing import Optional
 import urllib
+from urllib.parse import quote as url_quote, urlparse as url_urlparse
 import time
 from urllib.error import HTTPError
-import asyncio
 import anyio
 import click
-from fastapi import Body
 from fastapi import Request
-from fastapi import Response
-from fastapi.responses import JSONResponse
-from fastapi.responses import StreamingResponse
 import httpx
 from mcp.server.lowlevel import Server
-from mcp.server.fastmcp import FastMCP
 from mcp.server.session import ServerSession
 import mcp.types as types
 from pyDataverse.Croissant import Croissant
@@ -25,6 +19,7 @@ import requests
 #from mcp.schema import TextContent
 #from utils.MultiMedia import MultiMedia
 import pydoi
+import os
 
 from utils.dataframe import CroissantRecipe
 ####################################################################################
@@ -49,37 +44,41 @@ logger = logging.getLogger(__name__)
 def resolve_doi( doi_str):
     if not doi_str.startswith('doi:'):
         doi_str = f"doi:{doi_str}"
-    doi = pydoi.get_url(urllib.parse.quote(doi_str.replace("doi:", "")))
+    doi = pydoi.get_url(url_quote(doi_str.replace("doi:", "")))
     print(doi)
     if 'http' in doi:
-        return f"{urllib.parse.urlparse(doi).scheme}://{urllib.parse.urlparse(doi).hostname}"
+        parsed = url_urlparse(doi)
+        return f"{parsed.scheme}://{parsed.hostname}"
     else:
         print(f"DOI is {doi}")
         return None
 
 async def fetch_website(
     url: str,
-) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
+) -> str:
     headers = {
         "User-Agent": "MCP Croissant Server"
     }
     async with httpx.AsyncClient(follow_redirects=True, headers=headers) as client:
         response = await client.get(url)
         response.raise_for_status()
-        #return [types.TextContent(type="text", text=response.text)]
         return response.text
 
 def serialize_data(data):
-    """Recursively convert datetime objects to strings."""
+    """Recursively convert non-JSON types (datetime/date/time) to strings.
+
+    Ensures external clients never see Python datetime objects which
+    would otherwise raise "Object of type datetime is not JSON serializable".
+    """
     if isinstance(data, dict):
         return {k: serialize_data(v) for k, v in data.items()}
     elif isinstance(data, list):
         return [serialize_data(item) for item in data]
-    elif isinstance(data, datetime):  # Ensure you import datetime
-        return data.isoformat()  # Convert datetime to ISO format string
+    elif isinstance(data, (dt.datetime, dt.date, dt.time)):
+        return data.isoformat()
     return data
 
-def convert_dataset_to_croissant_ml(doi: str, max_retries: int = 3, retry_delay: int = 5) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
+def convert_dataset_to_croissant_ml(doi: str, max_retries: int = 3, retry_delay: int = 5) -> dict:
     if not doi.startswith('doi:'):
         doi = f"doi:{doi}"
     host = resolve_doi(doi)
@@ -103,7 +102,7 @@ def convert_dataset_to_croissant_ml(doi: str, max_retries: int = 3, retry_delay:
     
     return {"error": "Maximum retry attempts reached. Please try again later."}
 
-def datatool(input: dict) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
+def process_datatool(input: dict) -> dict:
     doi = input["doi"]
     file = input["file"]
     logger.info(f"Datatool DOI is {doi}")
@@ -136,7 +135,8 @@ def main(port: int, transport: str) -> int:
             raise ValueError(f"Unknown tool: {name}")
         if "url" not in arguments:
             raise ValueError("Missing required argument 'url'")
-        return await fetch_website(arguments["url"])
+        html = await fetch_website(arguments["url"])
+        return [types.TextContent(type="text", text=html, mimeType="text/html")]
 
     @app.call_tool()
     async def get_croissant_record(
@@ -145,7 +145,9 @@ def main(port: int, transport: str) -> int:
         logger.info(f"Tool name received: {name}")
         if name != "get_croissant_record":
             raise ValueError(f"Unknown tool: {name}")
-        return convert_dataset_to_croissant_ml(arguments["doi"])
+        record = convert_dataset_to_croissant_ml(arguments["doi"])
+        serialized = serialize_data(record)
+        return [types.TextContent(type="text", text=json.dumps(serialized), mimeType="application/ld+json")]
 
     @app.call_tool()
     async def datatool(
@@ -153,19 +155,89 @@ def main(port: int, transport: str) -> int:
     ) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
         if name != "datatool":
             raise ValueError(f"Unknown tool: {name}")
-        return await datatool(input)
+        result = process_datatool(input)
+        return [types.TextContent(type="text", text=json.dumps(serialize_data(result)), mimeType="application/json")]
 
+    # MCP tool: now (current time in ISO 8601 UTC)
     @app.call_tool()
-    async def get_croissant_record_endpoint(
+    async def now(
         name: str, arguments: dict
     ) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
-        if name != "get_croissant_record":
+        if name != "now":
             raise ValueError(f"Unknown tool: {name}")
-        #await asyncio.sleep(0.1)
-        record = convert_dataset_to_croissant_ml(arguments["doi"]) #await get_croissant_record("get_croissant_record", {"doi": arguments["doi"]})
-        return record
-        #serializable_record = serialize_data(record)
-        #return types.TextContent(type="text", text=json.dumps(serializable_record, indent=4))
+        now_iso = dt.datetime.now(dt.timezone.utc).isoformat()
+        payload = {"now": now_iso}
+        return [types.TextContent(type="text", text=json.dumps(payload), mimeType="application/json")]
+
+    # MCP tool: overview
+    @app.call_tool()
+    async def overview(
+        name: str, arguments: dict
+    ) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
+        if name != "overview":
+            raise ValueError(f"Unknown tool: {name}")
+        url = os.environ.get("DATAVERSES")
+        if not url:
+            payload = {"error": "DATAVERSES env not set"}
+        else:
+            resp = requests.get(url)
+            payload = {"installations": resp.json().get("installations")}
+        return [types.TextContent(type="text", text=json.dumps(payload), mimeType="application/json")]
+
+    # MCP tool: overview_datasets
+    @app.call_tool()
+    async def overview_datasets(
+        name: str, arguments: dict
+    ) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
+        if name != "overview_datasets":
+            raise ValueError(f"Unknown tool: {name}")
+        host = arguments.get("host")
+        if not host:
+            raise ValueError("Missing required argument 'host'")
+        if "http" not in host:
+            host = f"https://{host}"
+        url = f"{host}/api/search?q=*&type=dataset&per_page=0"
+        data = requests.get(url)
+        content = {"datasets": data.json().get("data")}
+        return [types.TextContent(type="text", text=json.dumps(content), mimeType="application/json")]
+
+    # MCP tool: overview_files
+    @app.call_tool()
+    async def overview_files(
+        name: str, arguments: dict
+    ) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
+        if name != "overview_files":
+            raise ValueError(f"Unknown tool: {name}")
+        host = arguments.get("host")
+        if not host:
+            raise ValueError("Missing required argument 'host'")
+        if "http" not in host:
+            host = f"https://{host}"
+        url = f"{host}/api/search?q=*&type=file&per_page=0"
+        data = requests.get(url)
+        content = {"files": data.json().get("data")}
+        return [types.TextContent(type="text", text=json.dumps(content), mimeType="application/json")]
+
+    # MCP tool: search_datasets
+    @app.call_tool()
+    async def search_datasets(
+        name: str, arguments: dict
+    ) -> list[types.TextContent | types.ImageContent | types.EmbeddedResource]:
+        if name != "search_datasets":
+            raise ValueError(f"Unknown tool: {name}")
+        host = arguments.get("host")
+        query = arguments.get("query", "*")
+        if not host:
+            raise ValueError("Missing required argument 'host'")
+        q = f"q={query}" if query else "q=%2A"
+        if "http" not in host:
+            host = f"https://{host}"
+        url = f"{host}/api/search?{q}&type=dataset"
+        data = requests.get(url)
+        content = {"datasets": data.json().get("data")}
+        return [types.TextContent(type="text", text=json.dumps(content), mimeType="application/json")]
+
+    # Helper endpoint removed; use convert_dataset_to_croissant_ml directly in HTTP route
 
     @app.list_tools()
     async def list_tools() -> list[types.Tool]:
@@ -195,6 +267,16 @@ def main(port: int, transport: str) -> int:
                     "properties": {
                         "doi": {"type": "string", "description": "DOI of the dataset"}
                     },
+                },
+            ),
+            types.Tool(
+                name="now",
+                endpoint="/time",
+                description="Returns current UTC time as ISO 8601.",
+                inputSchema={
+                    "type": "object",
+                    "required": [],
+                    "properties": {},
                 },
             ),
             types.Tool(
@@ -262,12 +344,31 @@ def main(port: int, transport: str) -> int:
 
     if transport == "sse":
         from fastapi.responses import JSONResponse
+        from fastapi import Response
         from mcp.server.sse import SseServerTransport
         from starlette.applications import Starlette
         from starlette.routing import Mount
         from starlette.routing import Route
 
         sse = SseServerTransport("/messages/")
+
+        # Middleware to relax health checks that POST to /messages/ without a valid session.
+        # If a POST to /messages/ yields a 400, convert it to 202 Accepted so clients like Jan
+        # don't get stuck in a health-check loop. Real sessions continue to work via SSE.
+        from starlette.middleware.base import BaseHTTPMiddleware
+        class MessagesHealthMiddleware(BaseHTTPMiddleware):
+            async def dispatch(self, request, call_next):
+                response = await call_next(request)
+                try:
+                    path = request.url.path or ""
+                except Exception:
+                    path = ""
+                # Some clients probe POST /messages without a valid session.
+                # If the underlying transport returns 400, convert to 204 No Content
+                # so health checks pass without affecting real SSE sessions.
+                if request.method == "POST" and path.startswith("/messages") and response.status_code == 400:
+                    return Response(status_code=204)
+                return response
 
         async def handle_sse(request):
             async with sse.connect_sse(
@@ -294,6 +395,10 @@ def main(port: int, transport: str) -> int:
         async def get_status(request: Request):
             return JSONResponse(content={"status": "ok"})
 
+        async def run_time(request: Request):
+            now_iso = dt.datetime.now(dt.timezone.utc).isoformat()
+            return JSONResponse(content={"now": now_iso})
+
         async def run_get_croissant_record(request: Request):
             if request.method == "GET":
                 doi = request.query_params.get("doi")
@@ -308,7 +413,7 @@ def main(port: int, transport: str) -> int:
             try:
                 result = convert_dataset_to_croissant_ml(doi)
                 serialized_result = serialize_data(result)
-                return JSONResponse(content=serialized_result)
+                return JSONResponse(content=serialized_result, media_type="application/ld+json")
             except Exception as e:
                 logger.error(f"Error in get_croissant_record: {e}")
                 return JSONResponse(content={"error": str(e)}, status_code=500)
@@ -327,9 +432,9 @@ def main(port: int, transport: str) -> int:
 
             try:
                 input_data = {"doi": doi, "file": file}
-                result = await datatool(input_data)
+                result = process_datatool(input_data)
                 serialized_result = serialize_data(result)
-                return JSONResponse(content=serialized_result)
+                return JSONResponse(content=serialized_result, media_type="application/json")
             except Exception as e:
                 logger.error(f"Error in datatool: {e}")
                 return JSONResponse(content={"error": str(e)}, status_code=500)
@@ -368,19 +473,16 @@ def main(port: int, transport: str) -> int:
 
             logger.info(f"New croissant record endpoint called with doi: {doi}")
             try:
-                result = await get_croissant_record_endpoint('get_croissant_record', {"doi": doi})
-                logger.info(f"Result: {result}")
+                result = convert_dataset_to_croissant_ml(doi)
+                logger.info(f"Result received for DOI {doi}")
                 serialized_result = serialize_data(result)
-                ##return JSONResponse(content=types.TextContent(type="text", text=str(serialized_result)))
-                serialized_result['format'] = 'application/json'
-                serialized_result['message'] = 'Croissant record fetched successfully'
-                #return JSONResponse(content=serialized_result, media_type='application/json')
-                #return TextContent(text=json.dumps(serialized_result, indent=4), mime_type='application/json')
-                return JSONResponse(content={
-                    "type": "text",
-                    "mimeType": "application/ld+json",
-                    "text": json.dumps(serialized_result, indent=2)
-                })
+                return JSONResponse(
+                    content={
+                        "type": "text",
+                        "mimeType": "application/ld+json",
+                        "text": json.dumps(serialized_result, indent=2),
+                    }
+                )
                 #return JSONResponse(content={"result": f"{serialized_result}"})
             except Exception as e:
                 logger.error(f"Error in get_croissant_record: {e}")
@@ -395,8 +497,10 @@ def main(port: int, transport: str) -> int:
 
         async def run_get_overview(request: Request):
             url = os.environ.get("DATAVERSES")
+            if not url:
+                return JSONResponse(content={"error": "DATAVERSES env not set"}, status_code=500)
             data = requests.get(url)
-            installations = data.json()['installations']
+            installations = data.json().get('installations')
             return JSONResponse(content={"installations": installations})
             
         async def run_get_overview_datasets(request: Request):
@@ -406,7 +510,7 @@ def main(port: int, transport: str) -> int:
                 body = await request.json()
                 host = body.get("host")
 
-            return search_datasets(host, False)
+            return search_datasets_http(host, "*")
 
         async def run_search_datasets(request: Request):
             if request.method == "GET":
@@ -416,9 +520,9 @@ def main(port: int, transport: str) -> int:
                 body = await request.json()
                 host = body.get("host")
                 query = body.get("query")
-            return search_datasets(host, query)
+            return search_datasets_http(host, query)
 
-        def search_datasets(host: str, query: str):
+        def search_datasets_http(host: str, query: str):
             if query:
                 query = f"q={query}"
             else:
@@ -451,8 +555,11 @@ def main(port: int, transport: str) -> int:
             routes=[
                 Route("/sse", endpoint=handle_sse),
                 Mount("/messages/", app=sse.handle_post_message),
+                # Root alias for health checks (some clients probe "/").
+                Route("/", endpoint=get_status),
                 Route("/tools", endpoint=get_tools, methods=["GET", "POST"]),
                 Route("/status", endpoint=get_status),
+                Route("/time", endpoint=run_time),
                 Route("/tools/get_croissant_record", endpoint=run_get_croissant_record, methods=["GET", "POST"]),
                 Route("/tools/croissant/dataverse", endpoint=run_get_croissant_record, methods=["GET", "POST"]),
                 Route("/tools/croissant/kaggle", endpoint=run_get_croissant_record, methods=["GET", "POST"]),
@@ -480,6 +587,8 @@ def main(port: int, transport: str) -> int:
             logger.info("Server is ready to handle requests")
 
         starlette_app.add_event_handler("startup", startup)
+        # Install middleware after app creation
+        starlette_app.add_middleware(MessagesHealthMiddleware)
 
         import uvicorn
 

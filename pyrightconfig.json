@@ -1,0 +1,12 @@
+{
+  "pythonVersion": "3.13",
+  "venvPath": "./semantic_croissant",
+  "venv": ".venv",
+  "reportMissingImports": false,
+  "reportMissingModuleSource": "none",
+  "exclude": [
+    "**/__pycache__/**",
+    "semantic_croissant/uv.lock"
+  ]
+}
+
